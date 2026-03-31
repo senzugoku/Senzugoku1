@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>曲メモ（ES Modules版）</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 20px auto; background: #f0f0f0; padding: 20px; border-radius: 10px; }
+    input { padding: 10px; margin: 5px 2px; width: 45%; border-radius: 6px; border: 1px solid #ccc; }
+    #search { width: 100%; margin-top: 10px; }
+    button { padding: 10px 20px; border-radius: 8px; border: none; background-color: #4caf50; color: white; cursor: pointer; margin:5px 2px; }
+    button.delete-btn { background-color: #e74c3c; }
+    ul { list-style: none; padding: 0; margin-top: 15px; }
+    li { background: white; padding: 10px; margin-bottom: 8px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
+    li div { max-width: 80%; }
+    small { color: #666; }
+  </style>
+</head>
+<body>
+
+<h1>🎵 曲メモ（ES Modules版）</h1>
+
+<input id="title" placeholder="曲名">
+<input id="artist" placeholder="アーティスト名">
+<button id="addBtn">追加</button>
+<input id="search" placeholder="検索（曲名またはアーティスト）">
+
+<ul id="list"></ul>
+
+<script type="module">
+  // Firebase モジュール方式でインポート
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
+  // Firebase設定
+  const firebaseConfig = {
+    apiKey: "AIzaSyDXonAZm7FhdF7N6CidZDk7AMM0dvBdkng",
+    authDomain: "registering-song.firebaseapp.com",
+    projectId: "registering-song",
+    storageBucket: "registering-song.firebasestorage.app",
+    messagingSenderId: "1020091886603",
+    appId: "1:1020091886603:web:f5c69db17e0349a85d6b0e",
+    measurementId: "G-6XK4ZBKQCT"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const TWO_MONTHS = 1000 * 60 * 60 * 24 * 60;
+
+  const listEl = document.getElementById("list");
+  const titleInput = document.getElementById("title");
+  const artistInput = document.getElementById("artist");
+  const searchInput = document.getElementById("search");
+  const addBtn = document.getElementById("addBtn");
+
+  addBtn.addEventListener("click", addSong);
+  searchInput.addEventListener("input", render);
+
+  async function addSong() {
+    const title = titleInput.value.trim();
+    const artist = artistInput.value.trim();
+    if (!title || !artist) return alert("曲名とアーティスト名を入力してください");
+
+    // 重複チェック
+    const q = query(collection(db, "songs"), where("title","==",title), where("artist","==",artist));
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) return alert("すでに登録されています");
+
+    await addDoc(collection(db,"songs"), {
+      title,
+      artist,
+      date: Date.now()
+    });
+
+    titleInput.value = "";
+    artistInput.value = "";
+    render();
+  }
+
+  async function deleteSong(id) {
+    if (!confirm("削除しますか？")) return;
+    await deleteDoc(doc(db,"songs",id));
+    render();
+  }
+
+  async function render() {
+    const keyword = searchInput.value.trim().toLowerCase();
+    const now = Date.now();
+    const snapshot = await getDocs(collection(db,"songs"));
+    let songs = [];
+
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      if (now - data.date < TWO_MONTHS) {
+        songs.push({id: docSnap.id, ...data});
+      }
+    });
+
+    if (keyword) {
+      songs = songs.filter(s => 
+        s.title.toLowerCase().includes(keyword) ||
+        s.artist.toLowerCase().includes(keyword)
+      );
+    }
+
+    listEl.innerHTML = "";
+    songs.forEach(song => {
+      const li = document.createElement("li");
+      li.innerHTML = `
+        <div>
+          <strong>${escapeHtml(song.title)}</strong><br>
+          ${escapeHtml(song.artist)}<br>
+          <small>${new Date(song.date).toLocaleDateString()}</small>
+        </div>
+        <button class="delete-btn" onclick="deleteSong('${song.id}')">削除</button>
+      `;
+      listEl.appendChild(li);
+    });
+  }
+
+  function escapeHtml(text) {
+    return text.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  render();
+</script>
+
+</body>
+</html>
