@@ -27,19 +27,16 @@
 <ul id="list"></ul>
 
 <script type="module">
-  // Firebase モジュール方式でインポート
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
   import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-  // Firebase設定
   const firebaseConfig = {
-    apiKey: "AIzaSyDXonAZm7FhdF7N6CidZDk7AMM0dvBdkng",
+    apiKey: "AIzaSyDXxxxxxxxxxxxxxxxx",
     authDomain: "registering-song.firebaseapp.com",
     projectId: "registering-song",
     storageBucket: "registering-song.firebasestorage.app",
     messagingSenderId: "1020091886603",
-    appId: "1:1020091886603:web:f5c69db17e0349a85d6b0e",
-    measurementId: "G-6XK4ZBKQCT"
+    appId: "1:1020091886603:web:f5c69db17e0349a85d6b0e"
   };
 
   const app = initializeApp(firebaseConfig);
@@ -61,7 +58,6 @@
     const artist = artistInput.value.trim();
     if (!title || !artist) return alert("曲名とアーティスト名を入力してください");
 
-    // 重複チェック
     const q = query(collection(db, "songs"), where("title","==",title), where("artist","==",artist));
     const snapshot = await getDocs(q);
     if (!snapshot.empty) return alert("すでに登録されています");
@@ -77,7 +73,8 @@
     render();
   }
 
-  async function deleteSong(id) {
+  // ⭐ ここが修正ポイント
+  window.deleteSong = async function(id) {
     if (!confirm("削除しますか？")) return;
     await deleteDoc(doc(db,"songs",id));
     render();
