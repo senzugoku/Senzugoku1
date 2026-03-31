@@ -53,70 +53,110 @@
   addBtn.addEventListener("click", addSong);
   searchInput.addEventListener("input", render);
 
+  // ⭐ 追加処理（エラー表示付き）
   async function addSong() {
-    const title = titleInput.value.trim();
-    const artist = artistInput.value.trim();
-    if (!title || !artist) return alert("曲名とアーティスト名を入力してください");
-
-    const q = query(collection(db, "songs"), where("title","==",title), where("artist","==",artist));
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) return alert("すでに登録されています");
-
-    await addDoc(collection(db,"songs"), {
-      title,
-      artist,
-      date: Date.now()
-    });
-
-    titleInput.value = "";
-    artistInput.value = "";
-    render();
-  }
-
-  // ⭐ ここが修正ポイント
-  window.deleteSong = async function(id) {
-    if (!confirm("削除しますか？")) return;
-    await deleteDoc(doc(db,"songs",id));
-    render();
-  }
-
-  async function render() {
-    const keyword = searchInput.value.trim().toLowerCase();
-    const now = Date.now();
-    const snapshot = await getDocs(collection(db,"songs"));
-    let songs = [];
-
-    snapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      if (now - data.date < TWO_MONTHS) {
-        songs.push({id: docSnap.id, ...data});
+    try {
+      const title = titleInput.value.trim();
+      const artist = artistInput.value.trim();
+      if (!title || !artist) {
+        alert("曲名とアーティスト名を入力してください");
+        return;
       }
-    });
 
-    if (keyword) {
-      songs = songs.filter(s => 
-        s.title.toLowerCase().includes(keyword) ||
-        s.artist.toLowerCase().includes(keyword)
+      const q = query(
+        collection(db, "songs"),
+        where("title", "==", title),
+        where("artist", "==", artist)
       );
-    }
 
-    listEl.innerHTML = "";
-    songs.forEach(song => {
-      const li = document.createElement("li");
-      li.innerHTML = `
-        <div>
-          <strong>${escapeHtml(song.title)}</strong><br>
-          ${escapeHtml(song.artist)}<br>
-          <small>${new Date(song.date).toLocaleDateString()}</small>
-        </div>
-        <button class="delete-btn" onclick="deleteSong('${song.id}')">削除</button>
-      `;
-      listEl.appendChild(li);
-    });
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        alert("すでに登録されています");
+        return;
+      }
+
+      await addDoc(collection(db, "songs"), {
+        title,
+        artist,
+        date: Date.now()
+      });
+
+      titleInput.value = "";
+      artistInput.value = "";
+      render();
+
+    } catch (e) {
+      console.error("追加エラー:", e);
+      alert("追加エラー: " + e.message);
+    }
+  }
+
+  // ⭐ 削除処理（エラー表示付き）
+  window.deleteSong = async function(id) {
+    try {
+      if (!confirm("削除しますか？")) return;
+
+      await deleteDoc(doc(db, "songs", id));
+      render();
+
+    } catch (e) {
+      console.error("削除エラー:", e);
+      alert("削除エラー: " + e.message);
+    }
+  }
+
+  // ⭐ 描画処理（エラー表示付き）
+  async function render() {
+    try {
+      const keyword = searchInput.value.trim().toLowerCase();
+      const now = Date.now();
+      const snapshot = await getDocs(collection(db, "songs"));
+
+      let songs = [];
+
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (now - data.date < TWO_MONTHS) {
+          songs.push({ id: docSnap.id, ...data });
+        }
+      });
+
+      if (keyword) {
+        songs = songs.filter(s =>
+          s.title.toLowerCase().includes(keyword) ||
+          s.artist.toLowerCase().includes(keyword)
+        );
+      }
+
+      listEl.innerHTML = "";
+
+      songs.forEach(song => {
+        const li = document.createElement("li");
+        li.innerHTML = `
+          <div>
+            <strong>${escapeHtml(song.title)}</strong><br>
+            ${escapeHtml(song.artist)}<br>
+            <small>${new Date(song.date).toLocaleDateString()}</small>
+          </div>
+          <button class="delete-btn" onclick="deleteSong('${song.id}')">削除</button>
+        `;
+        listEl.appendChild(li);
+      });
+
+    } catch (e) {
+      console.error("表示エラー:", e);
+      alert("表示エラー: " + e.message);
+    }
   }
 
   function escapeHtml(text) {
-    return text.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    return text.replace(/[&<>"']/g, m => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[m]));
   }
 
   render();
